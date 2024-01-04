@@ -15,9 +15,9 @@ Postman and Docker needs to be installed.
 
 Run the following commands:
 
-`docker build -t <image-name> .`
+`docker compose build`
 
-`docker run -p 8080:8080 <image-name>`
+`docker compose up`
 
 Once the Docker container is up and running, the following endpoints can be used to send GET/POST/PUT requests from http://0.0.0.0:8080/:
 
@@ -28,3 +28,6 @@ Once the Docker container is up and running, the following endpoints can be used
 | POST | /status | job_id |
 | POST | /get_file_path | job_id |
 | POST | /get_metadata | job_id |
+
+For checking status in websocket, choose 'WebSocket' request type and enter ws://localhost:8080/ws.
+Enter 'Disconnect' in Messages for disconnecting.
