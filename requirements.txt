@@ -1,0 +1,7 @@
+fastapi[all] #includes websocket, uvicorn
+earthaccess
+fiona==1.8.22
+xarray
+geopandas
+python-dotenv
+h5netcdf
