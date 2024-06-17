@@ -1,11 +1,52 @@
 import asyncio
 import os
+from os.path import basename
 from pathlib import Path
 import subprocess
 import s3fs
 from config import cloudfrontUrl, s3BucketName, aws_access_key_id, aws_secret_access_key
+from zipfile import ZipFile
+import boto3
 
 from src.models.status_model import JobType, Status, JobStatus
+
+def get_all_file_paths(directory):
+  
+    # initializing empty file paths list
+    file_paths = []
+  
+    # crawling through directory and subdirectories
+    for root, directories, files in os.walk(directory):
+        for filename in files:
+            # join the two strings in order to form the full filepath.
+            filepath = os.path.join(root, filename)
+            file_paths.append(filepath)
+  
+    # returning all file paths
+    return file_paths
+
+def zip_zarr_files(zip_zarr_path, zarr_path):
+    file_paths = get_all_file_paths(zarr_path)
+    with ZipFile(zip_zarr_path,'w') as zip: 
+        # writing each file one by one 
+        for file in file_paths: 
+            zip.write(file, "./" + "/".join(file.split('/')[-2:])) 
+
+def upload_file_to_s3(file_name, object_name):
+
+    # Create an S3 client
+    s3_client = boto3.client('s3')
+
+    try:
+        # Upload the file
+        response = s3_client.upload_file(file_name, s3BucketName, object_name)
+        if response == None:
+            print(f"Upload Successful")
+            return f"{cloudfrontUrl}/{object_name}"    
+    except Exception as e:
+        print(f"Error uploading file: {e}")
+        return ""
+    return ""
 
 def s3_upload_pangeoforge(dir, uid, manager):
     status = f"Uploading {dir} to S3"
@@ -54,7 +95,11 @@ def handlePangeoForge(results, current_job, manager):
         upload_path = os.path.dirname(zarr_path)
         current_job.status = "Generated zarr files"
         asyncio.run(manager.broadcast(Status(JobType.PANGEO_FORGE, current_job.uid, current_job.status)))
-        response = s3_upload_pangeoforge(upload_path, current_job.uid, manager)
+
+        zip_zarr_path = f"{DIR}/data/{current_job.uid}/{current_job.uid}.zip"
+        zip_zarr_files(zip_zarr_path, zarr_path)
+
+        response = upload_file_to_s3(zip_zarr_path, f"{current_job.uid}.zip")
         if (len(response) == 0):
             current_job.status = "Failed uploading zarr to S3"
             asyncio.run(manager.broadcast(Status(JobType.PANGEO_FORGE, current_job.uid, current_job.status)))
