@@ -1,0 +1,3 @@
+recipes:
+  - id: earthaccess-ghrc
+    object: "recipe:recipe"

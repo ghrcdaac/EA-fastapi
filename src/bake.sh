@@ -1,0 +1,1 @@
+pangeo-forge-runner bake --config=$CONFIG_FILE --repo=$REPO --Bake.job_name=$JOB_NAME --prune

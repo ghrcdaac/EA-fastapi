@@ -1,0 +1,7 @@
+fastapi[all]==0.104.1 #includes websocket, uvicorn
+earthaccess==0.7.1
+fiona==1.9.5
+xarray==2023.8.0
+geopandas==0.14.1
+python-dotenv==1.0.0
+h5netcdf==1.3.0
