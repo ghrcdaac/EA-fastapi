@@ -1,0 +1,81 @@
+import random
+from typing import Any, Dict
+from fastapi import Body, FastAPI, Query, WebSocket
+import string
+
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+
+from src import *
+from src.models.job_model import Job, Metadata, Coord
+from src.login_handler import login_handler
+from src.websocket_handler import ConnectionManager
+from src.root_handler import root_handler
+from http import HTTPStatus
+from fastapi import BackgroundTasks
+from src.websocket_handler import *
+from src.download_handler import *
+from src.file_path_handler import *
+from src.status_handler import *
+from src.metadata_handler import *
+
+# Enable CORS for all origins
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*']
+    )
+]
+
+# Dict as job storage
+jobs: Dict[str, Job] = {}
+app = FastAPI(middleware=middleware)
+
+# Authenticate user and allow login
+login_handler()
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return await root_handler()
+
+manager = ConnectionManager()
+
+# Establish WebSocket connection
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    return await websocket_endpoint_handler(websocket, manager)
+
+# Start a download job in the background
+@app.put("/start_download", status_code=HTTPStatus.ACCEPTED)
+async def start_download(background_tasks: BackgroundTasks, short_name: str, date_range: list = Query([]) , concept_id: str | None = None, bounding_box: list | None = Query(None), isPangeoForge: bool | None = None):
+   
+    # Create a new Job instance and add it to the jobs dictionary
+    # Job should always start with a letter because we use this for pangeo forge jobid which has this specific requirement
+    current_job = Job()
+    key1 = random.choices(string.ascii_lowercase, k=1)[0]
+    key2 = ''.join(random.choices(string.ascii_lowercase + string.digits, k=7))
+    current_job.uid = key1+key2
+    jobs[current_job.uid] = current_job
+
+    # Add the download job to the background tasks
+    background_tasks.add_task(download_handler, current_job, short_name, tuple(date_range), concept_id, bounding_box, manager, isPangeoForge)
+    return current_job.uid
+
+# Check the status of a job
+@app.post("/status")
+async def status(uid: str):
+    return await status_handler(uid, jobs)
+
+# Get the files associated with a job
+@app.post("/get_file_path")
+async def get_file_path(uid: str):
+    return await file_path_handler(uid, jobs)
+
+# Display metadata associated with a job(only earthaccess)
+@app.post("/get_metadata")
+async def get_metadata(uid: str):
+    return await metadata_handler(uid, jobs)
